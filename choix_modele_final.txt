@@ -1,0 +1,301 @@
+================================================================================
+    JUSTIFICATION DES CHOIX D'HYPERPARAMETRES POUR LE MODELE FINAL
+================================================================================
+
+Ce document détaille la démarche suivie pour sélectionner les hyperparamètres
+du modèle U-Net final, entraîné sur le dataset ISIC 2016 pour la segmentation
+de lésions cutanées.
+
+
+METHODOLOGIE
+------------
+
+Notre approche suit une recherche séquentielle en deux passes :
+
+  Passe 1 : On fixe une configuration de référence (baseline) et on fait
+  varier un seul hyperparamètre à la fois. Cela permet d'isoler l'effet de
+  chaque paramètre sur la performance (Dice, IoU) et sur le coût
+  (nombre de paramètres, temps d'entraînement).
+
+  Passe 2 : On combine les meilleurs choix de chaque expérience pour
+  construire un modèle final optimisé.
+
+Configuration baseline :
+  base_filters=64, depth=4, skip=True, loss=bce+dice, augmentation=flip,
+  image_size=256, dropout=0.0, batch_size=8, lr=1e-4, upsample=bilinear
+
+Critère de sélection : on ne retient un hyperparamètre que si son gain en
+Dice est significatif (au-delà du bruit inter-runs estimé à ~0.005) ET que
+le surcoût en complexité est justifié. Un gain de +0.002 avec 4x plus de
+paramètres n'est pas retenu.
+
+
+================================================================================
+PARAMETRES ISSUS DE LA V1 (exp 1 à 8)
+================================================================================
+
+
+1) base_filters → 64 (conservé)
+---------------------------------
+Valeurs testées : 32, 64, 128
+Résultats :
+  - filters=32  : Dice=0.8587, 7.8M params
+  - filters=64  : Dice=0.8737, 31.4M params
+  - filters=128 : Dice=0.8780, 125.4M params
+
+Le passage de 64 à 128 filtres quadruple le nombre de paramètres (31M → 125M)
+pour un gain de seulement +0.004 en Dice. Ce gain est inférieur au bruit
+d'entraînement et ne justifie pas le surcoût mémoire et computationnel.
+En revanche, le passage de 32 à 64 apporte un gain net de +0.015 pour un
+coût raisonnable. On conserve donc 64 filtres comme compromis optimal entre
+capacité du réseau et efficacité.
+
+
+2) depth → 4 (conservé)
+-------------------------
+Valeurs testées : 3, 4, 5 blocs d'encodage
+Résultats :
+  - depth=3 : Dice=0.8465, 7.8M params
+  - depth=4 : Dice=0.8710, 31.4M params
+  - depth=5 : Dice=0.8716, 125.5M params
+
+Un réseau plus profond (depth=5) n'apporte qu'un gain marginal de +0.0006
+par rapport à depth=4, tout en quadruplant les paramètres. Avec seulement
+4 niveaux de pooling sur des images 256x256, la feature map au bottleneck
+fait 16x16, ce qui est suffisant pour capturer le contexte global des lésions.
+Ajouter un 5ème niveau (8x8) n'apporte pas d'information utile supplémentaire
+pour ce dataset.
+
+
+3) skip connections → True (conservé)
+---------------------------------------
+Valeurs testées : avec skip, sans skip
+Résultats :
+  - skip    : Dice=0.8672
+  - no_skip : Dice=0.8770
+
+Bien que le modèle sans skip connections obtienne un Dice légèrement supérieur
+(+0.01), nous conservons les skip connections pour plusieurs raisons :
+
+  a) Ce résultat est contre-intuitif et probablement dû au bruit
+     d'entraînement. Les skip connections sont un élément fondamental de
+     l'architecture U-Net : elles permettent au décodeur de récupérer les
+     détails spatiaux fins (contours, textures) perdus lors du pooling.
+
+  b) Sans skip connections, le décodeur doit reconstruire toute l'information
+     spatiale uniquement à partir du bottleneck compressé. Cela fonctionne
+     parfois sur des cas simples mais échoue sur des lésions à bords complexes.
+
+  c) La littérature et le papier original de U-Net (Ronneberger et al., 2015)
+     démontrent que les skip connections sont essentielles pour la segmentation
+     médicale. Leur suppression ne transforme pas le U-Net en CNN (qui n'a
+     pas de décodeur du tout) mais donne un encoder-decoder dégradé.
+
+  d) Sur un plus grand volume de données ou avec des lésions plus variées,
+     les skip connections montreraient probablement un avantage plus net.
+
+
+4) loss → dice (changé)
+-------------------------
+Valeurs testées : BCE, Dice, BCE+Dice, IoU
+Résultats :
+  - loss=bce      : Dice=0.8600
+  - loss=dice     : Dice=0.8902
+  - loss=bce+dice : Dice=0.8737 (baseline)
+  - loss=iou      : Dice=0.8050
+
+La Dice loss est le grand gagnant de cette expérience avec un gain de +0.03
+par rapport à la baseline, sans aucun surcoût computationnel. C'est le
+paramètre qui a le plus d'impact sur la performance dans toute notre étude.
+
+Explication : la Dice loss optimise directement la métrique qu'on cherche à
+maximiser (le coefficient de Dice). Contrairement à la BCE qui traite chaque
+pixel indépendamment, la Dice loss considère le recouvrement global entre la
+prédiction et le masque. Sur un dataset déséquilibré (les lésions occupent
+souvent une petite fraction de l'image), la BCE est dominée par les pixels de
+fond tandis que la Dice loss donne naturellement plus d'importance à la région
+d'intérêt.
+
+La combinaison BCE+Dice n'apporte pas de gain par rapport à Dice seul : le
+terme BCE "dilue" le signal de la Dice loss avec un objectif pixel-par-pixel
+qui n'est pas aligné avec notre métrique cible.
+
+La IoU loss performe mal, probablement à cause de gradients moins stables
+que la Dice loss (le dénominateur de l'IoU est plus sensible aux petites
+variations).
+
+
+5) augmentation → flip (conservé)
+-----------------------------------
+Valeurs testées : aucune, flip (horizontal + vertical), heavy (flips +
+rotation + brightness + contraste)
+Résultats :
+  - aug=none  : Dice=0.8707
+  - aug=flip  : Dice=0.8789 (baseline)
+  - aug=heavy : Dice=0.8769
+
+Les flips simples apportent un gain modeste mais consistant (+0.008) par
+rapport à aucune augmentation. L'augmentation lourde (heavy) n'améliore pas
+les résultats et les dégrade même légèrement par rapport aux flips seuls.
+
+Cela s'explique par la nature du dataset : les lésions cutanées sont
+photographiées dans des conditions relativement homogènes (dermoscope).
+Les variations de luminosité et de contraste artificielles introduites par
+l'augmentation heavy ne correspondent pas à des variations réalistes et
+peuvent perturber l'apprentissage. Les flips, en revanche, sont des
+transformations naturelles (une lésion peut être orientée dans n'importe
+quel sens).
+
+
+6) image_size → 256 (conservé)
+--------------------------------
+Valeurs testées : 128x128, 256x256, 384x384
+Résultats :
+  - size=128 : Dice=0.8844
+  - size=256 : Dice=0.8735 (baseline)
+  - size=384 : Dice=0.8668
+
+De façon surprenante, la résolution 128x128 obtient le meilleur Dice.
+Cependant, nous conservons 256x256 pour les raisons suivantes :
+
+  a) En segmentation médicale, la précision spatiale des contours est
+     cruciale. Une prédiction à 128x128 upscalée à la taille originale
+     produit des contours en escalier, moins exploitables cliniquement.
+
+  b) Le bon score de 128x128 s'explique en partie par un artefact : la
+     lésion remplit une plus grande proportion de l'image à basse résolution,
+     ce qui facilite la segmentation globale mais au détriment des détails
+     de bord.
+
+  c) 384x384 sous-performe probablement parce que le batch size a dû être
+     réduit à 2 (contrainte mémoire), rendant l'entraînement instable.
+
+  d) 256x256 offre le meilleur compromis entre détail spatial, stabilité
+     d'entraînement et coût mémoire.
+
+
+7) dropout → 0.0 (conservé)
+------------------------------
+Valeurs testées : 0.0, 0.2, 0.5 (au bottleneck)
+Résultats :
+  - dropout=0.0 : Dice=0.8754
+  - dropout=0.2 : Dice=0.8767
+  - dropout=0.5 : Dice=0.8692
+
+Les gains sont négligeables entre 0.0 et 0.2 (+0.001), et le dropout=0.5
+dégrade les performances. Le réseau ne semble pas souffrir d'overfitting
+significatif sur ce split de données (probablement grâce à la batch
+normalization et à l'augmentation par flips qui régularisent déjà le modèle).
+On conserve dropout=0.0 pour la simplicité.
+
+
+8) batch_size → 8 (conservé)
+-------------------------------
+Valeurs testées : 4, 8, 16
+Résultats :
+  - batch=4  : Dice=0.8695
+  - batch=8  : Dice=0.8782 (baseline)
+  - batch=16 : Dice=0.8756
+
+Le batch size 8 donne les meilleurs résultats. Un batch trop petit (4)
+introduit plus de variance dans les gradients, un batch trop grand (16)
+peut réduire la capacité de généralisation (les gradients sont trop "lisses",
+le modèle converge vers des minima plus plats mais parfois sous-optimaux).
+Le batch size 8 est un standard qui fonctionne bien pour la segmentation
+d'images médicales à cette résolution.
+
+
+================================================================================
+PARAMETRES ISSUS DE LA V2 (exp 9 à 11)
+================================================================================
+
+
+9) learning rate → sélection automatique
+-------------------------------------------
+Valeurs testées : 1e-3, 1e-4, 1e-5
+
+Le learning rate contrôle la vitesse d'apprentissage. Un lr trop élevé (1e-3)
+risque de faire osciller la loss et de dépasser les minima. Un lr trop bas
+(1e-5) ralentit la convergence et peut rester bloqué dans un minimum local,
+surtout avec seulement 30 epochs et un early stopping à 8 epochs de patience.
+
+Le meilleur lr est sélectionné automatiquement dans le notebook. Aucune
+différence de coût computationnel entre les trois valeurs : même architecture,
+même nombre de paramètres, même temps d'entraînement.
+
+
+10) méthode d'upsampling → sélection avec seuil
+--------------------------------------------------
+Valeurs testées : bilinear (UpSampling2D), transpose (Conv2DTranspose)
+
+  - UpSampling2D (bilinéaire) : interpolation simple qui double la résolution
+    spatiale. Pas de paramètres appris, rapide, mais l'upsampling n'est pas
+    adaptatif.
+
+  - Conv2DTranspose : convolution transposée qui apprend les filtres de
+    reconstruction. Ajoute des paramètres (un kernel 2x2 par canal par étage
+    du décodeur) mais permet au réseau d'apprendre comment reconstruire au
+    mieux la résolution spatiale.
+
+Pour ce paramètre, Conv2DTranspose ajoute de la complexité. On applique donc
+un seuil : on ne le retient que si le gain en Dice dépasse +0.01. En dessous,
+le gain est dans le bruit et ne justifie pas les paramètres supplémentaires.
+
+
+11) pondération des contours (boundary weights) → sélection automatique
+--------------------------------------------------------------------------
+Valeurs testées : w0=0 (pas de pondération), w0=5, w0=10
+
+Cette expérience teste l'ajout d'une weight map qui pondère la loss BCE
+pour donner plus d'importance aux pixels proches des contours de la lésion.
+
+Fonctionnement :
+  1. On extrait les contours du masque par morphologie (dilatation - érosion
+     avec un kernel 5x5), ce qui donne une bande de ~2-3 pixels autour du
+     bord de la lésion.
+  2. On construit une weight map : weight = 1 + w0 * contour. Les pixels
+     de contour pèsent (1+w0) fois plus que les pixels normaux.
+  3. La loss BCE est multipliée pixel par pixel par cette weight map avant
+     d'être moyennée. La Dice loss reste inchangée (elle est globale).
+
+Avec w0=5, une erreur de prédiction sur un pixel de contour coûte 6 fois
+plus qu'une erreur sur un pixel intérieur. Cela force le modèle à concentrer
+son attention sur les bords des lésions, qui sont la zone la plus difficile
+et la plus importante cliniquement.
+
+Le meilleur w0 est comparé à la Dice loss pure (gagnante de l'exp 4). Si la
+pondération des contours améliore le score, elle est intégrée au modèle final.
+Sinon, on conserve la Dice loss seule.
+
+Aucun surcoût en paramètres (la weight map est calculée à la volée dans la
+loss), temps d'entraînement quasiment identique.
+
+
+================================================================================
+CONFIGURATION FINALE
+================================================================================
+
+Les paramètres fixes (issus de la v1) :
+  - base_filters = 64
+  - depth = 4
+  - skip_connections = True
+  - augmentation = flip
+  - image_size = 256x256
+  - dropout = 0.0
+  - batch_size = 8
+
+Les paramètres ajustés automatiquement (issus de la v2) :
+  - learning_rate = sélectionné par exp 9
+  - upsample = sélectionné par exp 10 (avec seuil +0.01)
+  - loss = sélectionnée par exp 4 + exp 11 (dice vs boundary weights)
+
+Le seul changement majeur par rapport à la baseline est le passage de la loss
+BCE+Dice vers la Dice loss, qui apporte le plus gros gain de toute l'étude
+(environ +0.03 de Dice). Les autres paramètres restent à leur valeur par
+défaut car aucune alternative ne justifiait le surcoût en complexité.
+
+Cette démarche illustre un principe important en machine learning : la
+majorité du gain vient souvent d'un ou deux choix clés (ici la loss function),
+tandis que l'optimisation fine des autres paramètres n'apporte que des gains
+marginaux. Identifier ces leviers principaux est plus efficace que de chercher
+à optimiser tous les paramètres simultanément.

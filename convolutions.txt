@@ -1,0 +1,52 @@
+================================================================================
+    CONVOLUTIONS 1D, 2D, 3D : EXPLICATION
+================================================================================
+
+Le "nD" dans Conv1D, Conv2D, Conv3D désigne le nombre de DIRECTIONS DE
+DEPLACEMENT du filtre, pas la forme physique du filtre.
+
+
+CONV1D
+------
+- Entrée : séquence de longueur L avec C canaux → (L, C)
+- Le filtre glisse dans 1 direction (le long de la séquence)
+- Forme du filtre : (k, C) → mais il ne glisse que selon L
+- Utilisation : texte, audio, séries temporelles
+
+
+CONV2D (notre cas)
+------------------
+- Entrée : image H×W avec C canaux → (H, W, C)
+- Le filtre glisse dans 2 directions (hauteur + largeur)
+- Forme du filtre : (k, k, C) → mais il ne glisse que selon H et W
+- Les C canaux sont couverts en une seule opération (produit scalaire sur
+  tout le volume), ce qui produit un seul nombre par position spatiale
+- Utilisation : images 2D (photos, dermoscopie, etc.)
+
+Exemple concret dans notre U-Net :
+  - Première couche : entrée RGB (256, 256, 3)
+    Filtre = (3, 3, 3) = 27 poids + 1 biais = 28 paramètres par filtre
+    Avec base_filters=64 filtres → 64 × 28 = 1792 paramètres
+
+  - Deuxième couche : entrée (256, 256, 64)
+    Filtre = (3, 3, 64) = 576 poids + 1 biais = 577 paramètres par filtre
+    Avec 64 filtres → 64 × 577 = 36 928 paramètres
+
+Le filtre est physiquement un bloc 3D de nombres, mais on appelle ça Conv2D
+parce qu'il ne se DEPLACE que dans 2 dimensions. La profondeur (canaux) n'est
+pas une direction de glissement : le filtre couvre tous les canaux d'un coup.
+
+
+CONV3D
+------
+- Entrée : volume D×H×W avec C canaux → (D, H, W, C)
+- Le filtre glisse dans 3 directions (profondeur + hauteur + largeur)
+- Forme du filtre : (k, k, k, C)
+- Utilisation : volumes médicaux 3D (scanner, IRM), vidéo (temps + H + W)
+
+
+RESUME
+------
+  Conv1D : 1 direction de glissement → séquences
+  Conv2D : 2 directions de glissement → images
+  Conv3D : 3 directions de glissement → volumes 3D

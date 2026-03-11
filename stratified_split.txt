@@ -1,0 +1,123 @@
+================================================================================
+    STRATIFICATION DU SPLIT TRAIN / VALIDATION / TEST
+================================================================================
+
+Ce document explique la démarche de stratification du split de données utilisé
+dans le notebook hyperparam_unet_v2.ipynb pour le dataset ISIC 2016.
+
+
+PROBLEME INITIAL
+----------------
+
+Un split aléatoire (random shuffle) ne garantit pas que la distribution des
+tailles de lésions soit homogène entre les ensembles train, validation et test.
+Par exemple, si les grandes lésions se retrouvent majoritairement dans le test
+set, le modèle n'aura pas appris à les segmenter correctement, et les métriques
+seront biaisées.
+
+En segmentation médicale, la taille de la lésion (ratio surface lésion / surface
+image) est un facteur déterminant de la difficulté de segmentation :
+  - Les très petites lésions (<1% de l'image) sont difficiles car peu de pixels
+    portent l'information.
+  - Les très grandes lésions (>10%) sont plus faciles globalement mais peuvent
+    avoir des contours complexes.
+
+Un split non stratifié peut donc surestimer ou sous-estimer la performance réelle
+du modèle selon la répartition aléatoire obtenue.
+
+
+ANALYSE PREALABLE (description.ipynb)
+--------------------------------------
+
+L'analyse du dataset réalisée dans description.ipynb a montré que la distribution
+des tailles de lésions est fortement asymétrique (skewed) : beaucoup de petites
+lésions et quelques grandes. Cette observation a motivé l'utilisation d'un split
+stratifié pour garantir une représentation équitable de chaque catégorie dans
+chaque ensemble.
+
+
+METHODE DE STRATIFICATION
+--------------------------
+
+1) Calcul du ratio de lésion :
+   Pour chaque image, on calcule le ratio = nombre de pixels blancs du masque /
+   nombre total de pixels. Ce ratio représente la proportion de l'image occupée
+   par la lésion.
+
+2) Discrétisation en 4 bins :
+   On classe chaque image dans un bin selon son ratio de lésion :
+     - Bin 0 : ratio < 1%   (très petites lésions)
+     - Bin 1 : 1% ≤ ratio < 5%   (petites lésions)
+     - Bin 2 : 5% ≤ ratio < 10%  (lésions moyennes)
+     - Bin 3 : ratio ≥ 10%  (grandes lésions)
+
+   Les seuils (1%, 5%, 10%) ont été choisis en s'appuyant sur la distribution
+   observée dans description.ipynb, de manière à obtenir des bins suffisamment
+   peuplés pour que la stratification soit effective.
+
+3) Split en deux étapes avec StratifiedShuffleSplit (scikit-learn) :
+
+   Étape 1 : On sépare train+val (90%) vs test (10%), stratifié par bin.
+   Étape 2 : On sépare train (80% du total) vs val (20% restants de train+val),
+             stratifié par bin.
+
+   En procédant en deux étapes, on garantit que chaque bin est représenté
+   proportionnellement dans les trois ensembles (train, val, test).
+
+   On utilise un seed fixe (SEED=42) pour la reproductibilité.
+
+
+IMPLEMENTATION
+--------------
+
+La fonction split_paths() dans le notebook :
+
+  def split_paths(scale=0.5, val_ratio=0.2, test_ratio=0.1, seed=SEED):
+      # 1. Charge les chemins des images et masques
+      # 2. Sous-échantillonne si scale < 1
+      # 3. Pour chaque masque, calcule le bin de taille via _compute_lesion_bin()
+      # 4. Premier split stratifié : trainval vs test
+      # 5. Deuxième split stratifié : train vs val
+      # 6. Affiche la vérification de la distribution par split
+
+  def _compute_lesion_bin(mask_path):
+      # Lit le masque en niveaux de gris
+      # Calcule ratio = pixels blancs (>127) / pixels totaux
+      # Retourne le bin (0-3) et le ratio
+
+Vérification : après le split, le notebook affiche la distribution des bins
+dans chaque ensemble (train, val, test) pour confirmer visuellement que la
+stratification est correcte. On s'attend à voir des proportions similaires
+dans chaque colonne.
+
+
+POURQUOI PAS K-FOLD STRATIFIE ?
+--------------------------------
+
+Le K-Fold stratifié (ex: StratifiedKFold avec K=5) est une alternative plus
+robuste qui utilise toutes les données pour l'évaluation. Cependant :
+  - Le coût computationnel est multiplié par K (chaque expérience doit être
+    entraînée K fois).
+  - Notre étude comporte déjà 13 expériences × plusieurs configurations,
+    ce qui rendrait un 5-fold prohibitif en temps.
+  - Le split stratifié simple (hold-out) est suffisant pour comparer des
+    hyperparamètres entre eux, tant que le split est le même pour toutes
+    les expériences (ce qui est garanti par le seed fixe).
+
+
+IMPACT SUR LES RESULTATS
+--------------------------
+
+La stratification ne change pas fondamentalement les résultats mais apporte
+deux garanties :
+
+  1. Fiabilité : les métriques (Dice, IoU) reflètent la performance réelle
+     du modèle sur toutes les catégories de lésions, pas seulement celles
+     surreprésentées dans le test set.
+
+  2. Reproductibilité : avec le même seed, le même split est obtenu à chaque
+     exécution, et la distribution des tailles est contrôlée.
+
+Tous les résultats du notebook v2 sont obtenus avec ce split stratifié, ce
+qui rend les comparaisons entre expériences plus fiables qu'avec un split
+aléatoire non contrôlé.
