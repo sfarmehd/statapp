@@ -3,9 +3,5 @@
 .venv_tf/
 .claude/
 dataset_ISIC/
-models/
-Archive.zip
-log
-Screenshot*.png
 __pycache__/
 *.pyc
