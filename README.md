@@ -20,9 +20,10 @@ statapp/
 
 ### 1. Dataset
 
-Télécharger le dataset ISIC 2016 (Task 1 — Segmentation) depuis Kaggle :
+Télécharger le dataset ISIC 2016 (Task 1 — Segmentation) :
 
-https://www.kaggle.com/datasets/angelachristabel/isbi2016-isic
+- **Kaggle** : https://www.kaggle.com/datasets/mahmudulhasantasin/isic-2016-original-dataset
+- **ISIC Archive (officiel)** : https://challenge.isic-archive.com/data/
 
 Extraire le contenu dans `dataset_ISIC/` pour obtenir :
 ```
