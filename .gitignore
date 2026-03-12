@@ -1,7 +1,0 @@
-.env
-.DS_Store
-.venv_tf/
-.claude/
-dataset_ISIC/
-__pycache__/
-*.pyc
