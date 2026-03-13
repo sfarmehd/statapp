@@ -1,0 +1,11 @@
+{
+  "method": "CNN Patch-based",
+  "best_patch_size": 32,
+  "ablation": {
+    "32": {
+      "patch_size": 32,
+      "params": 147745,
+      "train_time_s": 711.5,
+      "best_val_acc": 0.9154,
+      "n_epochs": 30,
+      "val_dice_mean": 

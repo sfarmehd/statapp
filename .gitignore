@@ -1,3 +1,6 @@
 dataset_ISIC/
 baseline_f64-d4-skip-bce+dice.keras
 FINAL.keras
+patch_cnn_p32.keras
+patch_cnn_p48.keras
+patch_cnn_p64.keras
