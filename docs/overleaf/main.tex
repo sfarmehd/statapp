@@ -61,7 +61,7 @@
     Clément \textsc{Hadji}
 }
 
-\date{Décembre 2025}
+\date{Mars 2026}
 
 \begin{document}
 
@@ -760,8 +760,6 @@ L'avantage du LAB s'explique par son \textbf{uniformité perceptuelle}~: les dis
 
 \subsubsection{Analyse par sous-groupes de difficulté}
 
-Les performances du $K$-means sont fortement conditionnées par trois facteurs structurels, analysés ici pour la meilleure variante (LAB).
-
 Les performances sont fortement conditionnées par la taille de la lésion et le contraste lésion/fond, comme l'illustre la figure~\ref{fig:kmeans_scatter}. Pour la variante LAB, le DSC moyen passe de $0{,}146$ pour les petites lésions ($\rho < 5\%$) à $0{,}728$ pour les grandes ($\rho > 10\%$), et de $0{,}338$ pour les images à faible contraste ($|\Delta| < 20$) à $0{,}820$ pour celles à contraste élevé ($|\Delta| \geq 50$).
 
 \begin{figure}[H]
@@ -1097,7 +1095,7 @@ La faible différence entre les performances de validation et de test ($\Delta\t
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{fig_unet_training_curves.pdf}
-\caption{Courbes d'entraînement du U-Net final. À gauche~: coefficient de Dice (train et validation) en fonction de l'epoch. À droite~: loss (Dice loss). La ligne horizontale pointillée indique le meilleur Dice de validation ($0{,}894$, epoch~20).}
+\caption{Courbes d'entraînement du U-Net final. À gauche~: coefficient de Dice (train et validation) en fonction de l'epoch. À droite~: Dice loss. La ligne horizontale pointillée indique le meilleur Dice de validation ($0{,}894$, epoch~20).}
 \label{fig:training_curves}
 \end{figure}
 
@@ -1277,7 +1275,7 @@ Plusieurs directions de recherche restent ouvertes pour prolonger ce travail~:
 
     \item \textbf{Architectures plus récentes.} Des variantes de U-Net intégrant des mécanismes d'attention (Attention U-Net) ou des \emph{transformers} (TransUNet) pourraient améliorer la capture des dépendances à longue portée, particulièrement utiles pour les lésions de grande taille.
 
-    \item \textbf{Analyse d'erreurs par sous-groupes.} Une évaluation stratifiée par taille de lésion, niveau de contraste et présence d'artefacts permettrait d'identifier les cas résiduels de défaillance et de guider les améliorations futures.
+    \item \textbf{Analyse d'erreurs ciblée.} L'analyse par sous-groupes de taille et de contraste réalisée dans ce travail pourrait être approfondie par une étude des cas d'échec résiduels du U-Net, en intégrant des critères supplémentaires (présence d'artefacts pileux, type de dermatoscope, morphologie des contours) afin de guider les améliorations futures.
 
     \item \textbf{Interprétabilité.} L'application de méthodes d'explicabilité telles que Grad-CAM \citep{selvaraju2017gradcam} permettrait de visualiser les régions de l'image les plus influentes dans la décision du modèle, renforçant la confiance des cliniciens dans les prédictions.
 \end{enumerate}
