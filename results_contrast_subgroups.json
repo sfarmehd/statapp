@@ -1,0 +1,80 @@
+{
+  "test_set_size": 379,
+  "contrast_bins": {
+    "Faible (|\u0394|<20)": {
+      "n": 74,
+      "kmeans_lab": {
+        "mean": 0.3197,
+        "std": 0.3434
+      },
+      "cnn_patch": {
+        "mean": 0.6965,
+        "std": 0.2218
+      },
+      "unet_baseline": {
+        "mean": 0.7812,
+        "std": 0.1867
+      },
+      "unet_final": {
+        "mean": 0.8242,
+        "std": 0.1681
+      }
+    },
+    "Moyen (20\u2264|\u0394|<50)": {
+      "n": 138,
+      "kmeans_lab": {
+        "mean": 0.5959,
+        "std": 0.3339
+      },
+      "cnn_patch": {
+        "mean": 0.7761,
+        "std": 0.1731
+      },
+      "unet_baseline": {
+        "mean": 0.8648,
+        "std": 0.1019
+      },
+      "unet_final": {
+        "mean": 0.8724,
+        "std": 0.1216
+      }
+    },
+    "Fort (|\u0394|\u226550)": {
+      "n": 167,
+      "kmeans_lab": {
+        "mean": 0.8314,
+        "std": 0.2005
+      },
+      "cnn_patch": {
+        "mean": 0.776,
+        "std": 0.1464
+      },
+      "unet_baseline": {
+        "mean": 0.8988,
+        "std": 0.1366
+      },
+      "unet_final": {
+        "mean": 0.9154,
+        "std": 0.1061
+      }
+    }
+  },
+  "global": {
+    "kmeans_lab": {
+      "mean": 0.6457,
+      "std": 0.3432
+    },
+    "cnn_patch": {
+      "mean": 0.7605,
+      "std": 0.1754
+    },
+    "unet_baseline": {
+      "mean": 0.8634,
+      "std": 0.1434
+    },
+    "unet_final": {
+      "mean": 0.8819,
+      "std": 0.1302
+    }
+  }
+}

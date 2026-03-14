@@ -1,0 +1,23 @@
+{
+  "comparison": {
+    "skip_full_with": {
+      "val_dice": 0.89156574010849,
+      "val_iou": 0.808289647102356,
+      "test_dice_mean": 0.8915097113099136,
+      "test_dice_std": 0.12069906276336603,
+      "test_iou_mean": 0.8203604087666031,
+      "test_iou_std": 0.15076582297322177,
+      "test_failures": 7
+    },
+    "skip_full_without": {
+      "val_dice": 0.8947978019714355,
+      "val_iou": 0.8111225366592407,
+      "test_dice_mean": 0.877178876923697,
+      "test_dice_std": 0.13414701703492657,
+      "test_iou_mean": 0.7998155891541441,
+      "test_iou_std": 0.1588449467657417,
+      "test_failures": 11
+    }
+  },
+  "delta_test_dice": 0.014330834386216629
+}

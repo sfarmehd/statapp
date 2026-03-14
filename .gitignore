@@ -4,3 +4,9 @@ FINAL.keras
 patch_cnn_p32.keras
 patch_cnn_p48.keras
 patch_cnn_p64.keras
+*.keras
+.DS_Store
+.venv/
+venv/
+.ipynb_checkpoints/
+__pycache__/
