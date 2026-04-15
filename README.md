@@ -57,6 +57,18 @@ pip install -r requirements.txt
 
 Les notebooks necessitent un GPU pour l'entrainement des modeles deep learning (U-Net, CNN Patch). Les experiences ont ete realisees sur GPU NVIDIA Tesla T4 (16 Go VRAM) via [Onyxia](https://www.onyxia.sh/).
 
+## App
+Charger/entrainer le modèle pour avoir Final.kera
+
+Launch :
+```bash
+streamlit run app.py
+```
+Close :
+```bash
+CTRL+C
+```
+
 ## Auteurs
 
 - Louis Maurice
